@@ -1,7 +1,7 @@
 mod interface;
 mod scene;
 mod token;
-use interface::{SocketMessage, SocketMessageType};
+use interface::{DataType, SocketMessage, SocketMessageType};
 use js_sys::Function;
 use scene::Scene;
 use std::collections::HashMap;
@@ -91,7 +91,7 @@ impl State {
             scene.move_token(id, x, y);
 
             // Update server.
-            let msg = SocketMessage::update_msg(id, x, y);
+            let msg = SocketMessage::token_update(id, x, y);
             let msg = serde_json::to_string(&msg).unwrap_or(String::from("{error=true}"));
             self.send_msg(&msg);
         }
@@ -128,13 +128,18 @@ impl State {
                 // TODO handle based on what is pending?
             }
 
-            SocketMessageType::SceneResponse(resp) => {
-                // For now, can only mean that the Scene changed.
-                if let Some(scene) = resp.scene.clone() {
-                    let scene = serde_json::from_value(scene)?;
-                    self.current_scene = Some(scene);
-                }
-                // TODO error handling.
+            SocketMessageType::DataResponse(resp) => {
+                match resp.data_type {
+                    DataType::Scene => {
+                        // For now, can only mean that the Scene changed.
+                        if let Some(scene) = resp.data.clone() {
+                            let scene = serde_json::from_value(scene)?;
+                            self.current_scene = Some(scene);
+                        }
+                        // TODO error handling.
+                    }
+                    _ => (),
+                };
             }
 
             _ => (),

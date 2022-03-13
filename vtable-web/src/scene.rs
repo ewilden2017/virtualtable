@@ -1,7 +1,6 @@
 //! Represent each scene, a single continious area to display and move in.
 //!
 
-use crate::token::Token;
 use serde::Deserialize;
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;

@@ -130,8 +130,9 @@ socket.onopen = function (e) {
     // Set up the current scene right away for now.
     const scene_data = {
         msg: {
-            type: "FetchScene",
-            scene_id: 0,
+            type: "Fetch",
+            data_type: "Scene",
+            id: 0,
         },
     };
     socket.send(JSON.stringify(scene_data));

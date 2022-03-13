@@ -77,11 +77,11 @@ async fn handle_socket(_req: Request<()>, mut stream: WebSocketConnection) -> ti
                 }
             }
 
-            SocketMessageType::FetchScene(_data) => {
+            SocketMessageType::Fetch(_data) => {
                 // TODO lookup scene by id
                 let scene = &test_scene;
 
-                SocketMessage::scene_response(Some(scene))
+                interface::scene_response(Some(scene))
             }
 
             // Send false response on invalid data.
