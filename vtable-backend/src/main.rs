@@ -5,10 +5,11 @@ use tide::Request;
 use tide_websockets::{Message, WebSocket, WebSocketConnection};
 
 mod config;
+mod interface;
+mod tabletop;
 use config::TomlConfig;
-
-use vtable_common::interface::{SocketMessage, SocketMessageType};
-use vtable_common::tabletop::*;
+use interface::{SocketMessage, SocketMessageType};
+use tabletop::*;
 
 const CONFIG_FILE: &str = "vtable.toml";
 
