@@ -1,6 +1,6 @@
 import * as wasm from "vtable-web";
 import { memory } from "vtable-web/vtable_web_bg";
-import {fps} from "./fps.js";
+import { fps } from "./fps.js";
 
 const TOKEN_STYLES = ["#AA0000", "#00AA00"];
 const TOKEN_RADIUS = 20;
@@ -9,16 +9,10 @@ const TOKEN_RADIUS = 20;
 const canvas = document.getElementById('maincanvas');
 const ctx = canvas.getContext('2d');
 
-// Set up a token to move around.
-const mainscene = wasm.Scene.new();
-const token1 = wasm.TokenReference.new(50, 50, TOKEN_RADIUS, 0);
-const token2 = wasm.TokenReference.new(200, 50, TOKEN_RADIUS, 1);
-
-mainscene.add_token(token1);
-mainscene.add_token(token2);
-
 const fps_counter = new fps();
 const fps_display = document.getElementById("fps");
+
+var mainscene;
 
 // Drawing Functions
 //
@@ -66,10 +60,8 @@ function toCanvasCoords(canvas, pagex, pagey) {
     return [worldX, worldY];
 }
 
-
 var selectedToken = undefined;
-// Click and drag
-canvas.addEventListener('mousedown', event => {
+function onMouseDown(event) {
 
     const position = toCanvasCoords(canvas, event.clientX, event.clientY);
     selectedToken = mainscene.find_token(position[0], position[1]);
@@ -98,16 +90,50 @@ canvas.addEventListener('mousedown', event => {
     canvas.addEventListener('mouseup', onMouseUp);
     canvas.addEventListener('mousemove', onDrag);
 
-});
-
-// Fit the canvas to the current winow size.
-const windowResize = () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    // This clears the canvas, so trigger a re-draw.
-    scheduleUpdate();
 }
-window.addEventListener('resize', windowResize);
 
-windowResize();
+function startup() {
+
+    // Click and drag
+    canvas.addEventListener('mousedown', onMouseDown);
+
+    // Fit the canvas to the current winow size.
+    const windowResize = () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        // This clears the canvas, so trigger a re-draw.
+        scheduleUpdate();
+    }
+    window.addEventListener('resize', windowResize);
+    windowResize();
+}
+
+// Create a websocket to the server.
+let scheme = "ws"
+if (document.location.protocol === "https:") {
+    scheme += "s";
+}
+let socket = new WebSocket(scheme + "://" + document.location.hostname + "/api/session");
+
+socket.onopen = function (e) {
+    console.log("Opened socket.");
+    canvas.disabled = false;
+
+    startup();
+}
+
+socket.onclose = function (e) {
+    console.log("Closed socket.");
+
+    // Remove canvas interaction, other than mouseup.
+    canvas.removeEventListener("mousedown", onMouseDown);
+    canvas.removeEventListener('mousemove', onDrag);
+    clear();
+}
+
+socket.onmessage = function (e) {
+    console.log("From server: " + e.data);
+    wasm.handle_message(e.data);
+}
+
 
