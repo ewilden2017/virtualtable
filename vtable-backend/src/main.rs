@@ -35,7 +35,7 @@ async fn main() -> Result<(), std::io::Error> {
     game_data.add_token(Token::new(0));
     game_data.add_scene(Scene::new(0, "Main Scene"));
     let test_scene = game_data.get_scene(0).unwrap();
-    test_scene.add_token(0, 0, 0);
+    test_scene.add_token(0, 100, 100);
 
     // Make sure the mutex is released.
     drop(game_data);
@@ -62,6 +62,7 @@ async fn handle_socket(_req: Request<()>, mut stream: WebSocketConnection) -> ti
     while let Some(Ok(Message::Text(input))) = stream.next().await {
         println!("recieved: {}", input);
         let msg: SocketMessage = serde_json::from_str(&input)?;
+        println!("{:?}", msg);
 
         // I believe this keeps the mutex locked until test_scene goes out of scope.
         let mut game_data = GAME_DATA.lock().await;

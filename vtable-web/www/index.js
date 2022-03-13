@@ -12,7 +12,8 @@ const ctx = canvas.getContext('2d');
 const fps_counter = new fps();
 const fps_display = document.getElementById("fps");
 
-var mainscene;
+// Interface for client state.
+let state = wasm.State.new();
 
 // Drawing Functions
 //
@@ -20,10 +21,12 @@ function clear() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
-function drawToken(token) {
+function drawToken(token, x, y) {
+    console.log("Printing token, token:" + token + ", x: " + x + ", y: " + y)
     ctx.beginPath();
-    ctx.arc(token.get_x(), token.get_y(), token.get_radius(), 0, 2 * Math.PI, false);
-    ctx.fillStyle = TOKEN_STYLES[token.get_style()];
+    // TODO store radius in token data?
+    ctx.arc(x, y, token.radius, 0, 2 * Math.PI, false);
+    ctx.fillStyle = TOKEN_STYLES[token.style];
     ctx.fill();
     ctx.lineWidth = 1;
     ctx.strokeStyle = "#000000";
@@ -31,7 +34,8 @@ function drawToken(token) {
 }
 
 var updatePending = false;
-const updateCanvas = () => {
+function updateCanvas() {
+    console.log("Updating canvas");
     const ms_frame = fps_counter.update();
     const avg_fps = fps_counter.get_fps();
     fps_display.textContent = `FPS: ${Math.round(avg_fps)} (${ms_frame} ms)`;
@@ -39,7 +43,7 @@ const updateCanvas = () => {
     updatePending = false;
     clear();
 
-    mainscene.each_token(drawToken);
+    state.each_token(drawToken);
 }
 
 // Wrapper function to make sure only one update is requested per frame.
@@ -61,30 +65,31 @@ function toCanvasCoords(canvas, pagex, pagey) {
 }
 
 var selectedToken = undefined;
+
+function onDrag(event) {
+    const position = toCanvasCoords(canvas, event.clientX, event.clientY);
+
+
+    state.move_token(selectedToken, position[0], position[1]);
+    scheduleUpdate();
+}
+
+// Stop dragging on mouse up.
+function onMouseUp(event) {
+    canvas.removeEventListener('mousemove', onDrag);
+    canvas.removeEventListener('mouseup', onMouseUp);
+    selectedToken = undefined;
+    fps_counter.freeze();
+}
+
 function onMouseDown(event) {
 
     const position = toCanvasCoords(canvas, event.clientX, event.clientY);
-    selectedToken = mainscene.find_token(position[0], position[1]);
+    selectedToken = state.token_at_pos(position[0], position[1]);
 
     // No object clicked.
     if (selectedToken === undefined) {
         return;
-    }
-
-    function onDrag(event) {
-        const position = toCanvasCoords(canvas, event.clientX, event.clientY);
-
-
-        selectedToken.set_pos(position[0], position[1]);
-        scheduleUpdate();
-    }
-
-    // Stop dragging on mouse up.
-    function onMouseUp(event) {
-        canvas.removeEventListener('mousemove', onDrag);
-        canvas.removeEventListener('mouseup', onMouseUp);
-        selectedToken = undefined;
-        fps_counter.freeze();
     }
 
     canvas.addEventListener('mouseup', onMouseUp);
@@ -93,6 +98,7 @@ function onMouseDown(event) {
 }
 
 function startup() {
+
 
     // Click and drag
     canvas.addEventListener('mousedown', onMouseDown);
@@ -115,11 +121,24 @@ if (document.location.protocol === "https:") {
 }
 let socket = new WebSocket(scheme + "://" + document.location.hostname + "/api/session");
 
+function socketSend(msg) {
+    socket.send(msg);
+}
+
 socket.onopen = function (e) {
+    state.set_send(socketSend);
+    // Set up the current scene right away for now.
+    const scene_data = {
+        msg: {
+            type: "FetchScene",
+            scene_id: 0,
+        },
+    };
+    socket.send(JSON.stringify(scene_data));
     console.log("Opened socket.");
     canvas.disabled = false;
 
-    startup();
+    //startup();
 }
 
 socket.onclose = function (e) {
@@ -133,7 +152,12 @@ socket.onclose = function (e) {
 
 socket.onmessage = function (e) {
     console.log("From server: " + e.data);
-    wasm.handle_message(e.data);
+    state.handle_message(e.data);
+
+    // Once we process the scene message, start doing things.
+    if (state.check_ready()) {
+        startup();
+    }
 }
 
 

@@ -1,6 +1,7 @@
 //! Represent each scene, a single continious area to display and move in.
 //!
 
+use crate::token::Token;
 use serde::Deserialize;
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
@@ -32,5 +33,18 @@ impl Scene {
 
     pub fn name(&self) -> String {
         self.name.to_owned()
+    }
+
+    pub fn move_token(&mut self, id: u32, x: u32, y: u32) {
+        // Avoid adding new elements this way.
+        if self.tokens.contains_key(&id) {
+            self.tokens.insert(id, SceneTokenData { x, y });
+        }
+    }
+}
+
+impl Scene {
+    pub fn tokens(&self) -> &HashMap<u32, SceneTokenData> {
+        &self.tokens
     }
 }
